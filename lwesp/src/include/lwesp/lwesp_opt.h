@@ -849,7 +849,7 @@
  *                  that support AT BLE commands 
  */
 #ifndef LWESP_CFG_BLE
-#define LWESP_CFG_BLE 0
+#define LWESP_CFG_BLE 1
 #endif
 
 /**
@@ -871,6 +871,33 @@
  * \brief           Configuration of Bluetooth Low Energy
  * \{
  */
+
+/**
+ * \brief           Maximum number of BLE connections supported
+ *
+ * \note            ESP-AT typically supports up to 3 BLE connections (index 0-2)
+ */
+#ifndef LWESP_CFG_BLE_MAX_CONNS
+#define LWESP_CFG_BLE_MAX_CONNS 3
+#endif
+
+/**
+ * \brief           Maximum length of BLE device name
+ *
+ * \note            ESP-AT limits the device name to 32 bytes
+ */
+#ifndef LWESP_CFG_BLE_MAX_NAME_LEN
+#define LWESP_CFG_BLE_MAX_NAME_LEN 32
+#endif
+
+/**
+ * \brief           Set debug level for BLE module
+ *
+ * Possible values are \ref LWESP_DBG_ON or \ref LWESP_DBG_OFF
+ */
+#ifndef LWESP_CFG_DBG_BLE
+#define LWESP_CFG_DBG_BLE LWESP_DBG_OFF
+#endif
 
 /**
  * \}

@@ -786,6 +786,16 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
         } else if (!strncmp(rcv->data, "+WEBSERVERRSP", 13)) {
             lwespi_parse_webserver(&rcv->data[14]); /* Parse string and send to user layer */
 #endif                                              /* LWESP_CFG_WEBSERVER */
+#if LWESP_CFG_BLE
+        } else if (!strncmp(rcv->data, "+BLECONN:", 9)) {
+            lwespi_parse_ble_conn(rcv->data);
+        } else if (!strncmp(rcv->data, "+BLEDISCONN:", 12)) {
+            lwespi_parse_ble_disconn(rcv->data);
+        } else if (!strncmp(rcv->data, "+BLESCAN:", 9)) {
+            lwespi_parse_ble_scan(rcv->data);
+        } else if (!strncmp(rcv->data, "+BLEGATTSWRITE:", 15)) {
+            lwespi_parse_ble_gatts_write(rcv->data);
+#endif /* LWESP_CFG_BLE */
         } else if (esp.msg != NULL) {
             if (0) {
 #if LWESP_CFG_CONN_MANUAL_TCP_RECEIVE
@@ -1633,6 +1643,23 @@ lwespi_process(const void* data, size_t data_len) {
                             RECV_RESET();
                         }
 #endif /* LWESP_CFG_FLASH */
+#if LWESP_CFG_BLE
+                    } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTSNTFY) || CMD_IS_CUR(LWESP_CMD_BLEGATTSIND)) {
+                        if (ch == '>' && ch_prev1 == '\n') {
+                            RECV_RESET();
+                            AT_PORT_SEND_WITH_FLUSH(esp.msg->msg.ble_gatts_ntfy_ind.data, esp.msg->msg.ble_gatts_ntfy_ind.len);
+                        }
+                    } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTSSETATTR)) {
+                        if (ch == '>' && ch_prev1 == '\n') {
+                            RECV_RESET();
+                            AT_PORT_SEND_WITH_FLUSH(esp.msg->msg.ble_gatts_set_attr.data, esp.msg->msg.ble_gatts_set_attr.len);
+                        }
+                    } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCWR)) {
+                        if (ch == '>' && ch_prev1 == '\n') {
+                            RECV_RESET();
+                            AT_PORT_SEND_WITH_FLUSH(esp.msg->msg.ble_gattc_wr.data, esp.msg->msg.ble_gattc_wr.len);
+                        }
+#endif /* LWESP_CFG_BLE */
 #if LWESP_CFG_CONN_MANUAL_TCP_RECEIVE
                         /*
                          * This part handles the response of "+CIPRECVDATA",
@@ -2849,14 +2876,155 @@ lwespi_initiate_cmd(lwesp_msg_t* msg) {
             break;
         }
 #endif /* LWESP_CFG_WEBSERVER */
-#if LWESP_CFG_ESP32
+#if LWESP_CFG_BLE
         case LWESP_CMD_BLEINIT_GET: {
             AT_PORT_SEND_BEGIN_AT();
             AT_PORT_SEND_CONST_STR("+BLEINIT?");
             AT_PORT_SEND_END_AT();
             break;
         }
-#endif /* LWESP_CFG_ESP32 */
+        case LWESP_CMD_BLEINIT_SET: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEINIT=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_init.role), 0, 0);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLENAME_SET: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLENAME=");
+            lwespi_send_string(msg->msg.ble_name.name, 1, 1, 0);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLESCAN: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLESCAN=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_scan.enable), 0, 0);
+            if (msg->msg.ble_scan.duration > 0) {
+                lwespi_send_number(LWESP_U32(msg->msg.ble_scan.duration), 0, 1);
+            }
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEADVDATA_SET: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEADVDATA=");
+            lwespi_send_string(msg->msg.ble_adv_data.data, 1, 1, 0);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEADVSTART: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEADVSTART");
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEADVSTOP: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEADVSTOP");
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLECONN: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLECONN=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_conn.conn_index), 0, 0);
+            lwespi_send_mac(&msg->msg.ble_conn.remote_addr, 1, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_conn.remote_addr_type), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_conn.timeout), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEDISCONN: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEDISCONN=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_disconn.conn_index), 0, 0);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTSSRVCRE: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTSSRVCRE");
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTSSRVSTART: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTSSRVSTART");
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTSSRVSTOP: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTSSRVSTOP");
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTSNTFY: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTSNTFY=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.conn_index), 0, 0);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.srv_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.char_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.len), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTSIND: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTSIND=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.conn_index), 0, 0);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.srv_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.char_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_ntfy_ind.len), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTSSETATTR: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTSSETATTR=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_set_attr.srv_index), 0, 0);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_set_attr.char_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gatts_set_attr.len), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTCPRIMSRV: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTCPRIMSRV=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_prim_srv.conn_index), 0, 0);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTCCHAR: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTCCHAR=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_char.conn_index), 0, 0);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_char.srv_index), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTCRD: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTCRD=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_rd.conn_index), 0, 0);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_rd.srv_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_rd.char_index), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+        case LWESP_CMD_BLEGATTCWR: {
+            AT_PORT_SEND_BEGIN_AT();
+            AT_PORT_SEND_CONST_STR("+BLEGATTCWR=");
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_wr.conn_index), 0, 0);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_wr.srv_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_wr.char_index), 0, 1);
+            lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_wr.len), 0, 1);
+            AT_PORT_SEND_END_AT();
+            break;
+        }
+#endif /* LWESP_CFG_BLE */
 
         default: return lwespERRCMDNOTSUPPORTED; /* Invalid command */
     }

@@ -899,3 +899,83 @@ lwespi_parse_webserver(const char* str) {
 }
 
 #endif /* LWESP_CFG_WEBSERVER || __DOXYGEN__ */
+
+#if LWESP_CFG_BLE || __DOXYGEN__
+
+/**
+ * \brief           Parse received +BLECONN statement
+ * \param[in]       str: Pointer to input string starting with +BLECONN
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+lwespi_parse_ble_conn(const char* str) {
+    lwesp_mac_t mac;
+    if (*str == '+') {
+        str += 9; /* +BLECONN: */
+    }
+    esp.evt.evt.ble_conn.conn_index = lwespi_parse_number(&str);
+    lwespi_parse_mac(&str, &mac);
+    esp.evt.evt.ble_conn.remote_addr = &mac;
+    
+    lwespi_send_cb(LWESP_EVT_BLE_CONN);
+    return 1;
+}
+
+/**
+ * \brief           Parse received +BLEDISCONN statement
+ * \param[in]       str: Pointer to input string starting with +BLEDISCONN
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+lwespi_parse_ble_disconn(const char* str) {
+    if (*str == '+') {
+        str += 12; /* +BLEDISCONN: */
+    }
+    esp.evt.evt.ble_disconn.conn_index = lwespi_parse_number(&str);
+    lwespi_send_cb(LWESP_EVT_BLE_DISCONN);
+    return 1;
+}
+
+/**
+ * \brief           Parse received +BLESCAN statement
+ * \param[in]       str: Pointer to input string starting with +BLESCAN
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+lwespi_parse_ble_scan(const char* str) {
+    lwesp_ble_scan_entry_t entry;
+    if (*str == '+') {
+        str += 9; /* +BLESCAN: */
+    }
+    memset(&entry, 0, sizeof(entry));
+    lwespi_parse_mac(&str, &entry.mac);
+    entry.rssi = lwespi_parse_number(&str);
+    /* Ignore the rest of parameters like adv_data for now */
+    
+    esp.evt.evt.ble_scan_result.entry = &entry;
+    lwespi_send_cb(LWESP_EVT_BLE_SCAN_RESULT);
+    return 1;
+}
+
+/**
+ * \brief           Parse received +BLEGATTSWRITE statement
+ * \param[in]       str: Pointer to input string starting with +BLEGATTSWRITE
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+lwespi_parse_ble_gatts_write(const char* str) {
+    if (*str == '+') {
+        str += 15; /* +BLEGATTSWRITE: */
+    }
+    esp.evt.evt.ble_gatts_write.conn_index = lwespi_parse_number(&str);
+    esp.evt.evt.ble_gatts_write.srv_index = lwespi_parse_number(&str);
+    esp.evt.evt.ble_gatts_write.char_index = lwespi_parse_number(&str);
+    esp.evt.evt.ble_gatts_write.len = lwespi_parse_number(&str);
+    esp.evt.evt.ble_gatts_write.data = NULL;
+    /* Optional: Parse the data if presented */
+    
+    lwespi_send_cb(LWESP_EVT_BLE_GATTS_WRITE);
+    return 1;
+}
+
+#endif /* LWESP_CFG_BLE || __DOXYGEN__ */

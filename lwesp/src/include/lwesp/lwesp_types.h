@@ -435,9 +435,88 @@ typedef enum {
  * \brief           API calls blocking or non-blocking type
  */
 typedef enum {
-    LWESP_NON_BLOCKING = 0, /*!< Blocking call */
-    LWESP_BLOCKING = 1,     /*!< Non-blocking call */
+    LWESP_NON_BLOCKING = 0, /*!< Non-blocking call */
+    LWESP_BLOCKING = 1,     /*!< Blocking call */
 } lwesp_blocking_t;
+
+#if LWESP_CFG_BLE || __DOXYGEN__
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE initialization role
+ */
+typedef enum {
+    LWESP_BLE_ROLE_DEINIT = 0, /*!< Deinit BLE */
+    LWESP_BLE_ROLE_CLIENT = 1, /*!< BLE client role */
+    LWESP_BLE_ROLE_SERVER = 2, /*!< BLE server role */
+} lwesp_ble_role_t;
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE address type
+ */
+typedef enum {
+    LWESP_BLE_ADDR_PUBLIC = 0,  /*!< Public device address */
+    LWESP_BLE_ADDR_RANDOM = 1,  /*!< Random device address */
+} lwesp_ble_addr_type_t;
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE scan type
+ */
+typedef enum {
+    LWESP_BLE_SCAN_TYPE_PASSIVE = 0, /*!< Passive scan */
+    LWESP_BLE_SCAN_TYPE_ACTIVE = 1,  /*!< Active scan */
+} lwesp_ble_scan_type_t;
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE advertising channel map
+ */
+typedef enum {
+    LWESP_BLE_ADV_CHNL_37 = 0x01,  /*!< Channel 37 */
+    LWESP_BLE_ADV_CHNL_38 = 0x02,  /*!< Channel 38 */
+    LWESP_BLE_ADV_CHNL_39 = 0x04,  /*!< Channel 39 */
+    LWESP_BLE_ADV_CHNL_ALL = 0x07, /*!< All channels (37, 38, 39) */
+} lwesp_ble_adv_chnl_t;
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE scan result entry
+ */
+typedef struct {
+    lwesp_mac_t addr;       /*!< Device MAC address */
+    int8_t rssi;            /*!< Signal strength RSSI */
+    uint8_t addr_type;      /*!< Address type (0=public, 1=random) */
+    uint8_t adv_data[31];   /*!< Raw advertising data */
+    uint8_t adv_data_len;   /*!< Advertising data length */
+    char name[LWESP_CFG_BLE_MAX_NAME_LEN + 1]; /*!< Device name if available */
+} lwesp_ble_scan_entry_t;
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE GATT service entry
+ */
+typedef struct {
+    uint16_t srv_index;  /*!< Service index */
+    uint16_t start;      /*!< Start handle */
+    uint16_t srv_type;   /*!< Service type (0=primary, 1=secondary) */
+    char uuid[37];       /*!< Service UUID string */
+} lwesp_ble_gatts_srv_t;
+
+/**
+ * \ingroup         LWESP_BLE
+ * \brief           BLE GATT characteristic entry
+ */
+typedef struct {
+    uint16_t srv_index;  /*!< Service index this char belongs to */
+    uint16_t char_index; /*!< Characteristic index */
+    uint16_t desc_index; /*!< Descriptor index (0 if char itself) */
+    char uuid[37];       /*!< Characteristic UUID string */
+    uint16_t prop;       /*!< Characteristic properties bitmask */
+} lwesp_ble_gatts_char_t;
+
+#endif /* LWESP_CFG_BLE || __DOXYGEN__ */
 
 /* Forward declarations */
 struct lwesp_evt;
@@ -538,6 +617,14 @@ typedef enum lwesp_evt_type_t {
                                         to request data automatically when event is received */
     LWESP_EVT_SNTP_TIME,         /*!< SNTP event with date and time */
 #endif                           /* LWESP_CFG_SNTP || __DOXYGEN__ */
+#if LWESP_CFG_BLE || __DOXYGEN__
+    LWESP_EVT_BLE_SCAN_RESULT,    /*!< BLE scan found a device */
+    LWESP_EVT_BLE_SCAN_DONE,      /*!< BLE scan completed */
+    LWESP_EVT_BLE_CONN,           /*!< BLE connection established */
+    LWESP_EVT_BLE_DISCONN,        /*!< BLE connection disconnected */
+    LWESP_EVT_BLE_CONN_PARAM,     /*!< BLE connection parameters updated */
+    LWESP_EVT_BLE_GATTS_WRITE,    /*!< BLE GATTS received write from client */
+#endif                            /* LWESP_CFG_BLE || __DOXYGEN__ */
     LWESP_CFG_END,
 } lwesp_evt_type_t;
 
@@ -659,6 +746,32 @@ typedef struct lwesp_evt {
             uint8_t code; /*!< Result of command */
         } ws_status;      /*!< Ping finished. Use with \ref LWESP_EVT_PING event */
 #endif                    /* LWESP_CFG_WEBSERVER || __DOXYGEN__ */
+#if LWESP_CFG_BLE || __DOXYGEN__
+        struct {
+            lwesp_ble_scan_entry_t* entry; /*!< Pointer to scan result entry */
+        } ble_scan_result;                 /*!< BLE scan result. Use with \ref LWESP_EVT_BLE_SCAN_RESULT event */
+
+        struct {
+            lwespr_t res;                  /*!< Scan completion result */
+        } ble_scan_done;                   /*!< BLE scan done. Use with \ref LWESP_EVT_BLE_SCAN_DONE event */
+
+        struct {
+            uint8_t conn_index;            /*!< Connection index */
+            lwesp_mac_t* remote_addr;      /*!< Remote device address */
+        } ble_conn;                        /*!< BLE connection. Use with \ref LWESP_EVT_BLE_CONN event */
+
+        struct {
+            uint8_t conn_index;            /*!< Connection index */
+        } ble_disconn;                     /*!< BLE disconnect. Use with \ref LWESP_EVT_BLE_DISCONN event */
+
+        struct {
+            uint8_t conn_index;            /*!< Connection index */
+            uint16_t srv_index;            /*!< Service index */
+            uint16_t char_index;           /*!< Characteristic index */
+            uint8_t* data;                 /*!< Written data */
+            size_t len;                    /*!< Data length */
+        } ble_gatts_write;                 /*!< GATTS write event. Use with \ref LWESP_EVT_BLE_GATTS_WRITE event */
+#endif                                     /* LWESP_CFG_BLE || __DOXYGEN__ */
     } evt;                /*!< Callback event union */
 } lwesp_evt_t;
 

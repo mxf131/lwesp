@@ -71,7 +71,16 @@ uint8_t lwespi_parse_cwsap(const char* str, lwesp_msg_t* msg);
 
 uint8_t lwespi_parse_cwdhcp(const char* str);
 
+#if LWESP_CFG_WEBSERVER || __DOXYGEN__
 uint8_t lwespi_parse_webserver(const char* str);
+#endif /* LWESP_CFG_WEBSERVER || __DOXYGEN__ */
+
+#if LWESP_CFG_BLE || __DOXYGEN__
+uint8_t lwespi_parse_ble_conn(const char* str);
+uint8_t lwespi_parse_ble_disconn(const char* str);
+uint8_t lwespi_parse_ble_scan(const char* str);
+uint8_t lwespi_parse_ble_gatts_write(const char* str);
+#endif /* LWESP_CFG_BLE || __DOXYGEN__ */
 
 #ifdef __cplusplus
 }

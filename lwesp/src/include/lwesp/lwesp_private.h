@@ -154,8 +154,47 @@ typedef enum {
     LWESP_CMD_WIFI_SMART_STOP,        /*!< Stop smart config */
     LWESP_CMD_WEBSERVER,              /*!< Start or Stop Web Server */
 
-    /* BLE commands, ESP32 only */
-    LWESP_CMD_BLEINIT_GET, /*!< Get BLE status */
+    /* BLE commands */
+#if LWESP_CFG_BLE || __DOXYGEN__
+    /* Phase 1: Core BLE */
+    LWESP_CMD_BLEINIT_GET,        /*!< Get BLE init status */
+    LWESP_CMD_BLEINIT_SET,        /*!< Set BLE init mode */
+    LWESP_CMD_BLEADDR_GET,        /*!< Get BLE device address */
+    LWESP_CMD_BLEADDR_SET,        /*!< Set BLE device address */
+    LWESP_CMD_BLENAME_GET,        /*!< Get BLE device name */
+    LWESP_CMD_BLENAME_SET,        /*!< Set BLE device name */
+    LWESP_CMD_BLESCANPARAM_SET,   /*!< Set BLE scan parameters */
+    LWESP_CMD_BLESCAN,            /*!< Start/stop BLE scanning */
+    LWESP_CMD_BLESCANRSPDATA_SET, /*!< Set BLE scan response data */
+    LWESP_CMD_BLEADVPARAM_SET,    /*!< Set BLE advertising parameters */
+    LWESP_CMD_BLEADVDATA_SET,     /*!< Set BLE advertising data */
+    LWESP_CMD_BLEADVDATAEX_SET,   /*!< Set BLE advertising data (extended) */
+    LWESP_CMD_BLEADVSTART,        /*!< Start BLE advertising */
+    LWESP_CMD_BLEADVSTOP,         /*!< Stop BLE advertising */
+    LWESP_CMD_BLECONN,            /*!< Establish BLE connection */
+    LWESP_CMD_BLEDISCONN,         /*!< Disconnect BLE connection */
+    LWESP_CMD_BLECONNPARAM_SET,   /*!< Update BLE connection parameters */
+    LWESP_CMD_BLEDATALEN_SET,     /*!< Set BLE data packet length */
+    LWESP_CMD_BLECFGMTU_SET,      /*!< Set BLE MTU length */
+    LWESP_CMD_BLECFGMTU_GET,      /*!< Query BLE MTU length */
+
+    /* Phase 2: GATT Server */
+    LWESP_CMD_BLEGATTSSRVCRE,     /*!< GATTS create services */
+    LWESP_CMD_BLEGATTSSRVSTART,   /*!< GATTS start services */
+    LWESP_CMD_BLEGATTSSRVSTOP,    /*!< GATTS stop services */
+    LWESP_CMD_BLEGATTSSRV_GET,    /*!< GATTS discover services */
+    LWESP_CMD_BLEGATTSCHAR_GET,   /*!< GATTS discover characteristics */
+    LWESP_CMD_BLEGATTSNTFY,       /*!< GATTS notify client */
+    LWESP_CMD_BLEGATTSIND,        /*!< GATTS indicate to client */
+    LWESP_CMD_BLEGATTSSETATTR,    /*!< GATTS set characteristic value */
+
+    /* Phase 2: GATT Client */
+    LWESP_CMD_BLEGATTCPRIMSRV,    /*!< GATTC discover primary services */
+    LWESP_CMD_BLEGATTCINCLSRV,    /*!< GATTC discover included services */
+    LWESP_CMD_BLEGATTCCHAR,       /*!< GATTC discover characteristics */
+    LWESP_CMD_BLEGATTCRD,         /*!< GATTC read characteristic */
+    LWESP_CMD_BLEGATTCWR,         /*!< GATTC write characteristic */
+#endif                            /* LWESP_CFG_BLE || __DOXYGEN__ */
 } lwesp_cmd_t;
 
 /**
@@ -514,6 +553,142 @@ typedef struct lwesp_msg {
             uint8_t ca_number; /*!< The index of CA, if only one CA, the value should be 0. */
         } tcpip_ssl_cfg;       /*!< SSl configuration for connection */
 
+#if LWESP_CFG_BLE || __DOXYGEN__
+        struct {
+            lwesp_ble_role_t role;           /*!< BLE role to initialize */
+        } ble_init;                          /*!< BLE init command */
+
+        struct {
+            const char* name;                /*!< Device name to set */
+            char* name_get;                  /*!< Buffer to read name into */
+            size_t name_get_len;             /*!< Buffer length for read */
+        } ble_name;                          /*!< BLE name set/get */
+
+        struct {
+            lwesp_ble_addr_type_t type;      /*!< Address type */
+            lwesp_mac_t addr;                /*!< Address value (for set) */
+        } ble_addr;                          /*!< BLE address set/get */
+
+        struct {
+            lwesp_ble_scan_type_t scan_type; /*!< Scan type (passive/active) */
+            uint8_t own_addr_type;           /*!< Own address type */
+            uint8_t filter_policy;           /*!< Filter policy */
+            uint16_t interval;               /*!< Scan interval */
+            uint16_t window;                 /*!< Scan window */
+        } ble_scan_param;                    /*!< BLE scan parameters */
+
+        struct {
+            uint8_t enable;                  /*!< 1=start, 0=stop */
+            int32_t duration;                /*!< Duration in seconds */
+            const char* filter_name;         /*!< Optional: filter by device name */
+        } ble_scan;                          /*!< BLE scan start/stop */
+
+        struct {
+            uint16_t adv_int_min;            /*!< Min advertising interval */
+            uint16_t adv_int_max;            /*!< Max advertising interval */
+            uint8_t adv_type;                /*!< Advertising type */
+            uint8_t own_addr_type;           /*!< Own address type */
+            uint8_t channel;                 /*!< Channel map */
+            uint8_t adv_filter_policy;       /*!< Advertising filter policy */
+            lwesp_mac_t peer_addr;           /*!< Peer address (for directed adv) */
+            uint8_t peer_addr_type;          /*!< Peer address type */
+        } ble_adv_param;                     /*!< BLE advertising parameters */
+
+        struct {
+            const char* data;                /*!< Advertising data hex string */
+        } ble_adv_data;                      /*!< BLE advertising data */
+
+        struct {
+            const char* data;                /*!< Scan response data hex string */
+        } ble_scan_rsp_data;                 /*!< BLE scan response data */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            lwesp_mac_t remote_addr;         /*!< Remote device address */
+            uint8_t remote_addr_type;        /*!< Remote address type */
+            uint32_t timeout;                /*!< Connection timeout (ms) */
+        } ble_conn;                          /*!< BLE connection */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+        } ble_disconn;                       /*!< BLE disconnect */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t min_interval;           /*!< Min connection interval */
+            uint16_t max_interval;           /*!< Max connection interval */
+            uint16_t latency;                /*!< Slave latency */
+            uint16_t timeout;                /*!< Supervision timeout */
+        } ble_conn_param;                    /*!< BLE connection parameter update */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t pkt_data_len;           /*!< Data packet length */
+        } ble_data_len;                      /*!< BLE data packet length */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t mtu;                    /*!< MTU size */
+        } ble_mtu;                           /*!< BLE MTU */
+
+        /* GATT Server */
+        struct {
+            uint8_t srv_index;               /*!< Optional service index */
+        } ble_gatts_srv_start;               /*!< GATTS service start */
+
+        struct {
+            uint8_t srv_index;               /*!< Optional service index */
+        } ble_gatts_srv_stop;                /*!< GATTS service stop */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t srv_index;              /*!< Service index */
+            uint16_t char_index;             /*!< Characteristic index */
+            const uint8_t* data;             /*!< Data to notify/indicate */
+            size_t len;                      /*!< Data length */
+        } ble_gatts_ntfy_ind;                /*!< GATTS notify/indicate */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t srv_index;              /*!< Service index */
+            uint16_t char_index;             /*!< Characteristic index */
+            uint16_t desc_index;             /*!< Descriptor index (optional) */
+            const uint8_t* data;             /*!< Data to set */
+            size_t len;                      /*!< Data length */
+        } ble_gatts_set_attr;                /*!< GATTS set attribute */
+
+        /* GATT Client */
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+        } ble_gattc_prim_srv;                /*!< GATTC discover primary services */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t srv_index;              /*!< Service index */
+        } ble_gattc_incl_srv;                /*!< GATTC discover included services */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t srv_index;              /*!< Service index */
+        } ble_gattc_char;                    /*!< GATTC discover characteristics */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t srv_index;              /*!< Service index */
+            uint16_t char_index;             /*!< Characteristic index */
+            uint16_t desc_index;             /*!< Descriptor index (optional) */
+        } ble_gattc_rd;                      /*!< GATTC read characteristic */
+
+        struct {
+            uint8_t conn_index;              /*!< Connection index */
+            uint16_t srv_index;              /*!< Service index */
+            uint16_t char_index;             /*!< Characteristic index */
+            uint16_t desc_index;             /*!< Descriptor index (optional) */
+            const uint8_t* data;             /*!< Data to write */
+            size_t len;                      /*!< Data length */
+        } ble_gattc_wr;                      /*!< GATTC write characteristic */
+#endif                                       /* LWESP_CFG_BLE || __DOXYGEN__ */
+
 #if LWESP_CFG_FLASH
         struct {
             lwesp_flash_partition_t partition; /*!< Partition to perform on */
@@ -639,6 +814,15 @@ typedef struct {
     struct tm sntp_dt; /*!< Data & time structure, used for automatic
                                 read request from the module, if feature enabled. */
 #endif                 /* LWESP_CFG_SNTP_AUTO_READ_TIME_ON_UPDATE || __DOXYGEN__ */
+#if LWESP_CFG_BLE || __DOXYGEN__
+    struct {
+        lwesp_ble_role_t role;               /*!< Current BLE role (0=deinit, 1=client, 2=server) */
+        char name[LWESP_CFG_BLE_MAX_NAME_LEN + 1]; /*!< BLE device name */
+        lwesp_mac_t addr;                    /*!< BLE device address */
+        uint8_t is_scanning;                 /*!< Flag: currently scanning */
+        uint8_t is_advertising;              /*!< Flag: currently advertising */
+    } ble;                                   /*!< BLE module status */
+#endif                                       /* LWESP_CFG_BLE || __DOXYGEN__ */
 } lwesp_modules_t;
 
 /**
