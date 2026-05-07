@@ -1184,7 +1184,29 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
                 esp.ll.uart.baudrate = esp.msg->msg.uart.baudrate; /* Save user baudrate */
                 lwesp_ll_init(&esp.ll);                            /* Set new baudrate */
             }
-        }
+#if LWESP_CFG_BLE
+        } else if (CMD_IS_CUR(LWESP_CMD_BLEINIT_SET)) {
+            if (stat.is_ok) {
+                esp.m.ble.role = esp.msg->msg.ble_init.role; /* Update BLE role on success */
+            }
+        } else if (CMD_IS_CUR(LWESP_CMD_BLENAME_SET)) {
+            if (stat.is_ok && esp.msg->msg.ble_name.name != NULL) {
+                strncpy(esp.m.ble.name, esp.msg->msg.ble_name.name, LWESP_CFG_BLE_MAX_NAME_LEN);
+                esp.m.ble.name[LWESP_CFG_BLE_MAX_NAME_LEN] = '\0'; /* Ensure null termination */
+            }
+        } else if (CMD_IS_CUR(LWESP_CMD_BLESCAN)) {
+            if (stat.is_ok) {
+                esp.m.ble.is_scanning = esp.msg->msg.ble_scan.enable; /* Update scanning state */
+            }
+        } else if (CMD_IS_CUR(LWESP_CMD_BLEADVSTART)) {
+            if (stat.is_ok) {
+                esp.m.ble.is_advertising = 1; /* Mark advertising as active */
+            }
+        } else if (CMD_IS_CUR(LWESP_CMD_BLEADVSTOP)) {
+            if (stat.is_ok) {
+                esp.m.ble.is_advertising = 0; /* Mark advertising as stopped */
+            }
+#endif /* LWESP_CFG_BLE */
     }
 
     /*

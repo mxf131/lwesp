@@ -906,6 +906,8 @@ lwespi_parse_webserver(const char* str) {
  * \brief           Parse received +BLECONN statement
  * \param[in]       str: Pointer to input string starting with +BLECONN
  * \return          `1` on success, `0` otherwise
+ * \note            The `remote_addr` pointer in the event structure is only valid
+ *                  during the callback execution. Do not store it for later use.
  */
 uint8_t
 lwespi_parse_ble_conn(const char* str) {
@@ -940,6 +942,8 @@ lwespi_parse_ble_disconn(const char* str) {
  * \brief           Parse received +BLESCAN statement
  * \param[in]       str: Pointer to input string starting with +BLESCAN
  * \return          `1` on success, `0` otherwise
+ * \note            The `entry` pointer in the event structure is only valid
+ *                  during the callback execution. Do not store it for later use.
  */
 uint8_t
 lwespi_parse_ble_scan(const char* str) {
@@ -947,10 +951,10 @@ lwespi_parse_ble_scan(const char* str) {
     if (*str == '+') {
         str += 9; /* +BLESCAN: */
     }
-    memset(&entry, 0, sizeof(entry));
-    lwespi_parse_mac(&str, &entry.mac);
+    LWESP_MEMSET(&entry, 0, sizeof(entry));
+    lwespi_parse_mac(&str, &entry.addr);
     entry.rssi = lwespi_parse_number(&str);
-    /* Ignore the rest of parameters like adv_data for now */
+    /* Remaining parameters (adv_data, etc.) are not parsed in current implementation */
     
     esp.evt.evt.ble_scan_result.entry = &entry;
     lwespi_send_cb(LWESP_EVT_BLE_SCAN_RESULT);
@@ -972,7 +976,7 @@ lwespi_parse_ble_gatts_write(const char* str) {
     esp.evt.evt.ble_gatts_write.char_index = lwespi_parse_number(&str);
     esp.evt.evt.ble_gatts_write.len = lwespi_parse_number(&str);
     esp.evt.evt.ble_gatts_write.data = NULL;
-    /* Optional: Parse the data if presented */
+    /* Data payload is reported via event; raw data parsing is not implemented */
     
     lwespi_send_cb(LWESP_EVT_BLE_GATTS_WRITE);
     return 1;

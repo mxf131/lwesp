@@ -84,6 +84,7 @@
 #define LWESP_CFG_MDNS                            1
 #define LWESP_CFG_PING                            1
 #define LWESP_CFG_FLASH                           1
+#define LWESP_CFG_BLE                             1
 #define LWESP_CFG_MODE_STATION                    1
 
 #define LWESP_CFG_RESET_ON_INIT                   1

@@ -46,6 +46,9 @@ lwesp_ble_init(lwesp_ble_role_t role, const lwesp_api_cmd_evt_fn evt_fn,
     LWESP_MSG_VAR_DEFINE(msg);
 
     LWESP_ASSERT(role <= LWESP_BLE_ROLE_SERVER);
+#if LWESP_CFG_ESP8266
+    LWESP_ASSERT(esp.m.device != LWESP_DEVICE_ESP8266); /* ESP8266 does not support BLE */
+#endif /* LWESP_CFG_ESP8266 */
 
     LWESP_MSG_VAR_ALLOC(msg, blocking);
     LWESP_MSG_VAR_SET_EVT(msg, evt_fn, evt_arg);
