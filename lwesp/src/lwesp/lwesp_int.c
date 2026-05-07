@@ -795,6 +795,8 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
             lwespi_parse_ble_scan(rcv->data);
         } else if (!strncmp(rcv->data, "+BLEGATTSWRITE:", 15)) {
             lwespi_parse_ble_gatts_write(rcv->data);
+        } else if (!strncmp(rcv->data, "+BLEGATTCRD:", 12)) {
+            lwespi_parse_ble_gattc_read(rcv->data);
 #endif /* LWESP_CFG_BLE */
         } else if (esp.msg != NULL) {
             if (0) {
@@ -1206,6 +1208,7 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
             if (stat.is_ok) {
                 esp.m.ble.is_advertising = 0; /* Mark advertising as stopped */
             }
+        }
 #endif /* LWESP_CFG_BLE */
     }
 

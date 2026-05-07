@@ -982,4 +982,25 @@ lwespi_parse_ble_gatts_write(const char* str) {
     return 1;
 }
 
+/**
+ * \brief           Parse received +BLEGATTCRD statement
+ * \param[in]       str: Pointer to input string starting with +BLEGATTCRD
+ * \return          `1` on success, `0` otherwise
+ */
+uint8_t
+lwespi_parse_ble_gattc_read(const char* str) {
+    if (*str == '+') {
+        str += 12; /* +BLEGATTCRD: */
+    }
+    esp.evt.evt.ble_gattc_read.conn_index = lwespi_parse_number(&str);
+    esp.evt.evt.ble_gattc_read.len = lwespi_parse_number(&str);
+    if (*str == '"') {
+        str++; /* Skip optional quote */
+    }
+    esp.evt.evt.ble_gattc_read.data = (const uint8_t*)str;
+    
+    lwespi_send_cb(LWESP_EVT_BLE_GATTC_READ);
+    return 1;
+}
+
 #endif /* LWESP_CFG_BLE || __DOXYGEN__ */

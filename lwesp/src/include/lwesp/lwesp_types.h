@@ -624,6 +624,7 @@ typedef enum lwesp_evt_type_t {
     LWESP_EVT_BLE_DISCONN,        /*!< BLE connection disconnected */
     LWESP_EVT_BLE_CONN_PARAM,     /*!< BLE connection parameters updated */
     LWESP_EVT_BLE_GATTS_WRITE,    /*!< BLE GATTS received write from client */
+    LWESP_EVT_BLE_GATTC_READ,     /*!< BLE GATTC read characteristic */
 #endif                            /* LWESP_CFG_BLE || __DOXYGEN__ */
     LWESP_CFG_END,
 } lwesp_evt_type_t;
@@ -771,6 +772,12 @@ typedef struct lwesp_evt {
             uint8_t* data;                 /*!< Written data */
             size_t len;                    /*!< Data length */
         } ble_gatts_write;                 /*!< GATTS write event. Use with \ref LWESP_EVT_BLE_GATTS_WRITE event */
+
+        struct {
+            uint8_t conn_index;            /*!< Connection index */
+            const uint8_t* data;           /*!< Read data pointer */
+            size_t len;                    /*!< Data length */
+        } ble_gattc_read;                  /*!< GATTC read event. Use with \ref LWESP_EVT_BLE_GATTC_READ event */
 #endif                                     /* LWESP_CFG_BLE || __DOXYGEN__ */
     } evt;                /*!< Callback event union */
 } lwesp_evt_t;
