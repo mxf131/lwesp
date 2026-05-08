@@ -795,8 +795,8 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
             lwespi_parse_ble_scan(rcv->data);
         } else if (!strncmp(rcv->data, "+BLEGATTSWRITE:", 15)) {
             lwespi_parse_ble_gatts_write(rcv->data);
-        } else if (!strncmp(rcv->data, "+BLEGATTCRD:", 12)) {
-            lwespi_parse_ble_gattc_read(rcv->data);
+        } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD) && !strncmp(rcv->data, "+BLEGATTCRD:", 12)) {
+            lwespi_parse_ble_gattc_read(rcv->data, esp.msg);
 #endif /* LWESP_CFG_BLE */
         } else if (esp.msg != NULL) {
             if (0) {
@@ -1193,8 +1193,12 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
             }
         } else if (CMD_IS_CUR(LWESP_CMD_BLENAME_SET)) {
             if (stat.is_ok && esp.msg->msg.ble_name.name != NULL) {
-                strncpy(esp.m.ble.name, esp.msg->msg.ble_name.name, LWESP_CFG_BLE_MAX_NAME_LEN);
-                esp.m.ble.name[LWESP_CFG_BLE_MAX_NAME_LEN] = '\0'; /* Ensure null termination */
+                size_t len = strlen(esp.msg->msg.ble_name.name);
+                if (len > LWESP_CFG_BLE_MAX_NAME_LEN) {
+                    len = LWESP_CFG_BLE_MAX_NAME_LEN;
+                }
+                LWESP_MEMCPY(esp.m.ble.name, esp.msg->msg.ble_name.name, len);
+                esp.m.ble.name[len] = '\0'; /* Ensure null termination */
             }
         } else if (CMD_IS_CUR(LWESP_CMD_BLESCAN)) {
             if (stat.is_ok) {

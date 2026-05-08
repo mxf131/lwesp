@@ -677,6 +677,9 @@ typedef struct lwesp_msg {
             uint16_t srv_index;              /*!< Service index */
             uint16_t char_index;             /*!< Characteristic index */
             uint16_t desc_index;             /*!< Descriptor index (optional) */
+            void* data;                      /*!< Buffer to store read data */
+            size_t btr;                      /*!< Buffer size */
+            size_t* actual_len;              /*!< Pointer to store actual read length */
         } ble_gattc_rd;                      /*!< GATTC read characteristic */
 
         struct {

@@ -985,18 +985,35 @@ lwespi_parse_ble_gatts_write(const char* str) {
 /**
  * \brief           Parse received +BLEGATTCRD statement
  * \param[in]       str: Pointer to input string starting with +BLEGATTCRD
+ * \param[in]       msg: Pointer to message to store data to
  * \return          `1` on success, `0` otherwise
  */
 uint8_t
-lwespi_parse_ble_gattc_read(const char* str) {
+lwespi_parse_ble_gattc_read(const char* str, lwesp_msg_t* msg) {
+    uint8_t conn_index;
+    size_t len;
+
     if (*str == '+') {
         str += 12; /* +BLEGATTCRD: */
     }
-    esp.evt.evt.ble_gattc_read.conn_index = lwespi_parse_number(&str);
-    esp.evt.evt.ble_gattc_read.len = lwespi_parse_number(&str);
+    conn_index = lwespi_parse_number(&str);
+    len = lwespi_parse_number(&str);
     if (*str == '"') {
         str++; /* Skip optional quote */
     }
+
+    if (msg != NULL && CMD_IS_CUR(LWESP_CMD_BLEGATTCRD)) {
+        if (msg->msg.ble_gattc_rd.data != NULL) {
+            size_t copy_len = LWESP_MIN(len, msg->msg.ble_gattc_rd.btr);
+            LWESP_MEMCPY(msg->msg.ble_gattc_rd.data, str, copy_len);
+            if (msg->msg.ble_gattc_rd.actual_len != NULL) {
+                *msg->msg.ble_gattc_rd.actual_len = copy_len;
+            }
+        }
+    }
+
+    esp.evt.evt.ble_gattc_read.conn_index = conn_index;
+    esp.evt.evt.ble_gattc_read.len = len;
     esp.evt.evt.ble_gattc_read.data = (const uint8_t*)str;
     
     lwespi_send_cb(LWESP_EVT_BLE_GATTC_READ);

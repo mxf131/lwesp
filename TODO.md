@@ -3,7 +3,7 @@
 - Implement `AT+CWSTATE` to query Wi-Fi state
 - Implement `AT+CIPSENDL` and `AT+CIPSENDLCFG` for long data send
 - Implement `AT+CIPTCPOPT` to configure TCP connection
-- Implement BLE feature
+
 - Implement BT feature
 - Transfer Cayenne MQTT app to be based on non-blocking API instead
 - Add DNS for IPv6 support (Optional)

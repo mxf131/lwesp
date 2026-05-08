@@ -317,8 +317,22 @@ lwesp_ble_gattc_discover_chars(uint8_t conn_index, uint16_t srv_index,
     return lwespi_send_msg_to_producer_mbox(&LWESP_MSG_VAR_REF(msg), lwespi_initiate_cmd, 10000);
 }
 
+/**
+ * \brief           Read GATTC characteristic value
+ * \param[in]       conn_index: Connection index
+ * \param[in]       srv_index: Service index
+ * \param[in]       char_index: Characteristic index
+ * \param[out]      data: Pointer to buffer to save read data
+ * \param[in]       btr: Number of bytes to read
+ * \param[out]      actual_len: Pointer to variable to save actual length read
+ * \param[in]       evt_fn: Callback function called when command has finished. Set to `NULL` when not used
+ * \param[in]       evt_arg: Custom argument for event callback function
+ * \param[in]       blocking: Status whether command should be blocking or not
+ * \return          \ref lwespOK on success, member of \ref lwespr_t enumeration otherwise
+ */
 lwespr_t
 lwesp_ble_gattc_read(uint8_t conn_index, uint16_t srv_index, uint16_t char_index,
+                     void* data, size_t btr, size_t* actual_len,
                      const lwesp_api_cmd_evt_fn evt_fn, void* const evt_arg,
                      const uint32_t blocking) {
     LWESP_MSG_VAR_DEFINE(msg);
@@ -329,6 +343,9 @@ lwesp_ble_gattc_read(uint8_t conn_index, uint16_t srv_index, uint16_t char_index
     LWESP_MSG_VAR_REF(msg).msg.ble_gattc_rd.conn_index = conn_index;
     LWESP_MSG_VAR_REF(msg).msg.ble_gattc_rd.srv_index = srv_index;
     LWESP_MSG_VAR_REF(msg).msg.ble_gattc_rd.char_index = char_index;
+    LWESP_MSG_VAR_REF(msg).msg.ble_gattc_rd.data = data;
+    LWESP_MSG_VAR_REF(msg).msg.ble_gattc_rd.btr = btr;
+    LWESP_MSG_VAR_REF(msg).msg.ble_gattc_rd.actual_len = actual_len;
 
     return lwespi_send_msg_to_producer_mbox(&LWESP_MSG_VAR_REF(msg), lwespi_initiate_cmd, 5000);
 }
