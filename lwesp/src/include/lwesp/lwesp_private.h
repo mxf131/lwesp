@@ -680,6 +680,9 @@ typedef struct lwesp_msg {
             void* data;                      /*!< Buffer to store read data */
             size_t btr;                      /*!< Buffer size */
             size_t* actual_len;              /*!< Pointer to store actual read length */
+            uint8_t read_mode;               /*!< Set to `1` when in binary data read mode */
+            size_t data_len;                 /*!< Data length reported by AT response */
+            size_t buff_ptr;                 /*!< Next write pointer into buffer */
         } ble_gattc_rd;                      /*!< GATTC read characteristic */
 
         struct {

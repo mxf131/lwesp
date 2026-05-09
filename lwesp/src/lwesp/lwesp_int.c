@@ -796,7 +796,7 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
         } else if (!strncmp(rcv->data, "+BLEGATTSWRITE:", 15)) {
             lwespi_parse_ble_gatts_write(rcv->data);
         } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD) && !strncmp(rcv->data, "+BLEGATTCRD:", 12)) {
-            lwespi_parse_ble_gattc_read(rcv->data, esp.msg);
+            lwespi_parse_ble_gattc_read(rcv->data, esp.msg); /* Sets read_mode for binary data */
 #endif /* LWESP_CFG_BLE */
         } else if (esp.msg != NULL) {
             if (0) {
@@ -1613,6 +1613,50 @@ lwespi_process(const void* data, size_t data_len) {
                 }
             }
 #endif /* LWESP_CFG_FLASH */
+#if LWESP_CFG_BLE
+        } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD) && esp.msg->msg.ble_gattc_rd.read_mode) {
+            size_t len;
+
+            /* Save current character to user buffer if within bounds */
+            if (esp.msg->msg.ble_gattc_rd.data != NULL
+                && esp.msg->msg.ble_gattc_rd.buff_ptr < esp.msg->msg.ble_gattc_rd.btr) {
+                ((uint8_t*)esp.msg->msg.ble_gattc_rd.data)[esp.msg->msg.ble_gattc_rd.buff_ptr] = ch;
+            }
+            ++esp.msg->msg.ble_gattc_rd.buff_ptr;
+
+            /* Try to read more data directly from buffer */
+            len = LWESP_MIN(d_len, esp.msg->msg.ble_gattc_rd.data_len - esp.msg->msg.ble_gattc_rd.buff_ptr);
+            if (len > 0) {
+                if (esp.msg->msg.ble_gattc_rd.data != NULL) {
+                    size_t copy_len = LWESP_MIN(len,
+                        esp.msg->msg.ble_gattc_rd.btr > esp.msg->msg.ble_gattc_rd.buff_ptr
+                            ? esp.msg->msg.ble_gattc_rd.btr - esp.msg->msg.ble_gattc_rd.buff_ptr
+                            : 0);
+                    if (copy_len > 0) {
+                        LWESP_MEMCPY(
+                            &((uint8_t*)esp.msg->msg.ble_gattc_rd.data)[esp.msg->msg.ble_gattc_rd.buff_ptr],
+                            d, copy_len);
+                    }
+                }
+                d_len -= len;
+                d += len;
+                esp.msg->msg.ble_gattc_rd.buff_ptr += len;
+            }
+
+            /* Check for end of data */
+            if (esp.msg->msg.ble_gattc_rd.buff_ptr == esp.msg->msg.ble_gattc_rd.data_len) {
+                esp.msg->msg.ble_gattc_rd.read_mode = 0;
+                if (esp.msg->msg.ble_gattc_rd.actual_len != NULL) {
+                    *esp.msg->msg.ble_gattc_rd.actual_len =
+                        LWESP_MIN(esp.msg->msg.ble_gattc_rd.data_len, esp.msg->msg.ble_gattc_rd.btr);
+                }
+                /* Send event to user */
+                esp.evt.evt.ble_gattc_read.conn_index = esp.msg->msg.ble_gattc_rd.conn_index;
+                esp.evt.evt.ble_gattc_read.len = esp.msg->msg.ble_gattc_rd.data_len;
+                esp.evt.evt.ble_gattc_read.data = (const uint8_t*)esp.msg->msg.ble_gattc_rd.data;
+                lwespi_send_cb(LWESP_EVT_BLE_GATTC_READ);
+            }
+#endif /* LWESP_CFG_BLE */
         } else {
             lwespr_t res = lwespERR;
             if (LWESP_ISVALIDASCII(ch)) { /* Manually check if valid ASCII character */
@@ -1687,6 +1731,21 @@ lwespi_process(const void* data, size_t data_len) {
                         if (ch == '>' && ch_prev1 == '\n') {
                             RECV_RESET();
                             AT_PORT_SEND_WITH_FLUSH(esp.msg->msg.ble_gattc_wr.data, esp.msg->msg.ble_gattc_wr.len);
+                        }
+                    } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD)) {
+                        /*
+                         * +BLEGATTCRD:<conn_index>,<len>,<binary_data>
+                         *
+                         * Detect 2nd comma to trigger binary read mode.
+                         * Data after this comma is raw binary and cannot
+                         * be processed as ASCII text.
+                         */
+                        if (ch == ',' && RECV_LEN() > 12 && RECV_IDX(0) == '+'
+                            && !strncmp(recv_buff.data, "+BLEGATTCRD", 11)
+                            && (tmp_ptr = strchr(recv_buff.data, ',')) != NULL
+                            && (tmp_ptr = strchr(tmp_ptr + 1, ',')) != NULL) {
+                            lwespi_parse_received(&recv_buff);
+                            RECV_RESET();
                         }
 #endif /* LWESP_CFG_BLE */
 #if LWESP_CFG_CONN_MANUAL_TCP_RECEIVE
