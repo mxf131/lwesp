@@ -984,12 +984,13 @@ lwespi_parse_ble_gatts_write(const char* str) {
 
 /**
  * \brief           Parse received +BLEGATTCRD statement and set binary read mode
+ * \note            This is treated as a URC because OK arrives before +BLEGATTCRD.
+ *                  User buffer info is already in esp.m.ble.gattc_rd (copied at cmd send time).
  * \param[in]       str: Pointer to input string starting with +BLEGATTCRD
- * \param[in]       msg: Pointer to message to store data to
  * \return          `1` on success, `0` otherwise
  */
 uint8_t
-lwespi_parse_ble_gattc_read(const char* str, lwesp_msg_t* msg) {
+lwespi_parse_ble_gattc_read(const char* str) {
     uint8_t conn_index;
     size_t len;
 
@@ -999,24 +1000,22 @@ lwespi_parse_ble_gattc_read(const char* str, lwesp_msg_t* msg) {
     conn_index = lwespi_parse_number(&str);
     len = lwespi_parse_number(&str);
 
-    if (msg != NULL && CMD_IS_CUR(LWESP_CMD_BLEGATTCRD)) {
-        msg->msg.ble_gattc_rd.conn_index = conn_index;
-        msg->msg.ble_gattc_rd.data_len = len;
-        msg->msg.ble_gattc_rd.buff_ptr = 0;
-        
-        if (len > 0) {
-            msg->msg.ble_gattc_rd.read_mode = 1; /* Enter binary read mode */
-        } else {
-            /* No data to read, fire event immediately */
-            msg->msg.ble_gattc_rd.read_mode = 0;
-            if (msg->msg.ble_gattc_rd.actual_len != NULL) {
-                *msg->msg.ble_gattc_rd.actual_len = 0;
-            }
-            esp.evt.evt.ble_gattc_read.conn_index = conn_index;
-            esp.evt.evt.ble_gattc_read.len = 0;
-            esp.evt.evt.ble_gattc_read.data = NULL;
-            lwespi_send_cb(LWESP_EVT_BLE_GATTC_READ);
+    esp.m.ble.gattc_rd.conn_index = conn_index;
+    esp.m.ble.gattc_rd.data_len = len;
+    esp.m.ble.gattc_rd.buff_ptr = 0;
+
+    if (len > 0) {
+        esp.m.ble.gattc_rd.read_mode = 1; /* Enter binary read mode */
+    } else {
+        /* No data to read, fire event immediately */
+        esp.m.ble.gattc_rd.read_mode = 0;
+        if (esp.m.ble.gattc_rd.actual_len != NULL) {
+            *esp.m.ble.gattc_rd.actual_len = 0;
         }
+        esp.evt.evt.ble_gattc_read.conn_index = conn_index;
+        esp.evt.evt.ble_gattc_read.len = 0;
+        esp.evt.evt.ble_gattc_read.data = NULL;
+        lwespi_send_cb(LWESP_EVT_BLE_GATTC_READ);
     }
 
     return 1;

@@ -80,7 +80,7 @@ uint8_t lwespi_parse_ble_conn(const char* str);
 uint8_t lwespi_parse_ble_disconn(const char* str);
 uint8_t lwespi_parse_ble_scan(const char* str);
 uint8_t lwespi_parse_ble_gatts_write(const char* str);
-uint8_t lwespi_parse_ble_gattc_read(const char* str, lwesp_msg_t* msg);
+uint8_t lwespi_parse_ble_gattc_read(const char* str);
 #endif /* LWESP_CFG_BLE || __DOXYGEN__ */
 
 #ifdef __cplusplus

@@ -278,11 +278,42 @@ msg->msg.ble_gattc_rd.buff_ptr = 0;
 
 ---
 
-## 八、需要回滚的前次修改
+## 九、最终解决方案：URC 模式 + 全局状态持久化 (方案 C)
 
-如果采用方案 B，之前对 `lwesp_int.c` 的两处修改都应回滚：
+### 1. 发现新问题：OK 先于数据到达
+在实测中发现，ESP-AT 对于 `AT+BLEGATTCRD` 的响应顺序是：
+```
+OK\r\n
++BLEGATTCRD:0,4,\xDE\xAD\xBE\xEF\r\n
+```
+这导致了一个致命时序问题：
+1. `OK` 到达，LwESP 认为命令已完成，调用 `lwespi_process_sub_cmd` 并释放信号量。
+2. `esp.msg` 被设置为 `NULL` 或被回收。
+3. `+BLEGATTCRD` 数据随后到达，但此时 `CMD_IS_CUR(LWESP_CMD_BLEGATTCRD)` 已为 `false`。
+4. 原有的 `read_mode` 逻辑（存储在 `esp.msg` 中）和触发逻辑全部失效。
 
-1. ~~ASCII 检查中的 `CMD_IS_CUR(LWESP_CMD_BLEGATTCRD)` 旁路~~（第 1618-1623 行）
-2. ~~`\n` 拦截逻辑~~（第 1640-1662 行）
+### 2. 解决方案：重构为 URC 处理架构
+将 `+BLEGATTCRD` 的数据接收重构为 URC 模式，使其不依赖于 `esp.msg` 的生命周期。
 
-这两处修改应由循环顶部的 `read_mode` 分支完整替代。
+#### A. 状态持久化 (`lwesp_private.h`)
+在全局结构体 `esp.m.ble` 中新增 `gattc_rd` 成员，用于持久化存储二进制读取的运行时状态（类似 `esp.m.ipd` 的设计）。
+
+#### B. 预拷贝缓冲区信息 (`lwesp_int.c`)
+在 `lwespi_initiate_cmd` 发送 AT 命令之前，将用户缓冲区指针 (`data`)、预期长度 (`btr`) 等信息从 `msg` 拷贝到全局 `esp.m.ble.gattc_rd` 中。
+
+#### C. 剥离 `CMD_IS_CUR` 依赖
+- **解析器匹配**：在 `lwespi_parse_received` 中移除 `CMD_IS_CUR` 检查，使 `+BLEGATTCRD:` 能够被独立解析。
+- **二进制模式触发**：在 `lwespi_process` 的逗号触发检测中移除 `CMD_IS_CUR` 检查。
+- **数据搬运**：二进制读取分支直接使用全局状态 `esp.m.ble.gattc_rd.read_mode`。
+
+### 3. 修复后的数据流
+1. 用户调用 API，信息存入 `esp.msg`。
+2. 命令发送，关键信息同步到全局状态。
+3. `OK` 到达，命令正常释放，信号量解除阻塞。
+4. 随后 `+BLEGATTCRD` URC 到达，解析器根据全局状态开启 `read_mode`。
+5. 二进制字节流绕过 ASCII 过滤，准确存入用户缓冲区。
+6. 读取完成后触发 `LWESP_EVT_BLE_GATTC_READ` 事件通知应用层。
+
+---
+**结论**：该方案彻底解决了 `OK` 时序导致的丢包问题，并提供了最高性能和最可靠的二进制数据保护机制。
+

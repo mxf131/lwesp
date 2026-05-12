@@ -827,6 +827,16 @@ typedef struct {
         lwesp_mac_t addr;                    /*!< BLE device address */
         uint8_t is_scanning;                 /*!< Flag: currently scanning */
         uint8_t is_advertising;              /*!< Flag: currently advertising */
+
+        struct {
+            uint8_t read_mode;               /*!< Set to `1` when in binary data read mode */
+            size_t data_len;                 /*!< Data length reported by AT response */
+            size_t buff_ptr;                 /*!< Next write position into buffer */
+            void* data;                      /*!< User buffer pointer (copied from msg before OK) */
+            size_t btr;                      /*!< User buffer size (bytes to read) */
+            size_t* actual_len;              /*!< Pointer to actual length output variable */
+            uint8_t conn_index;              /*!< Connection index from response */
+        } gattc_rd;                          /*!< GATTC read runtime state (persists after msg freed) */
     } ble;                                   /*!< BLE module status */
 #endif                                       /* LWESP_CFG_BLE || __DOXYGEN__ */
 } lwesp_modules_t;

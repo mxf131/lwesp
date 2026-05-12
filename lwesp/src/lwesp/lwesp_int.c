@@ -795,8 +795,8 @@ lwespi_parse_received(lwesp_recv_t* rcv) {
             lwespi_parse_ble_scan(rcv->data);
         } else if (!strncmp(rcv->data, "+BLEGATTSWRITE:", 15)) {
             lwespi_parse_ble_gatts_write(rcv->data);
-        } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD) && !strncmp(rcv->data, "+BLEGATTCRD:", 12)) {
-            lwespi_parse_ble_gattc_read(rcv->data, esp.msg); /* Sets read_mode for binary data */
+        } else if (!strncmp(rcv->data, "+BLEGATTCRD:", 12)) {
+            lwespi_parse_ble_gattc_read(rcv->data); /* Sets read_mode for binary data on global state */
 #endif /* LWESP_CFG_BLE */
         } else if (esp.msg != NULL) {
             if (0) {
@@ -1614,46 +1614,46 @@ lwespi_process(const void* data, size_t data_len) {
             }
 #endif /* LWESP_CFG_FLASH */
 #if LWESP_CFG_BLE
-        } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD) && esp.msg->msg.ble_gattc_rd.read_mode) {
+        } else if (esp.m.ble.gattc_rd.read_mode) {
             size_t len;
 
             /* Save current character to user buffer if within bounds */
-            if (esp.msg->msg.ble_gattc_rd.data != NULL
-                && esp.msg->msg.ble_gattc_rd.buff_ptr < esp.msg->msg.ble_gattc_rd.btr) {
-                ((uint8_t*)esp.msg->msg.ble_gattc_rd.data)[esp.msg->msg.ble_gattc_rd.buff_ptr] = ch;
+            if (esp.m.ble.gattc_rd.data != NULL
+                && esp.m.ble.gattc_rd.buff_ptr < esp.m.ble.gattc_rd.btr) {
+                ((uint8_t*)esp.m.ble.gattc_rd.data)[esp.m.ble.gattc_rd.buff_ptr] = ch;
             }
-            ++esp.msg->msg.ble_gattc_rd.buff_ptr;
+            ++esp.m.ble.gattc_rd.buff_ptr;
 
             /* Try to read more data directly from buffer */
-            len = LWESP_MIN(d_len, esp.msg->msg.ble_gattc_rd.data_len - esp.msg->msg.ble_gattc_rd.buff_ptr);
+            len = LWESP_MIN(d_len, esp.m.ble.gattc_rd.data_len - esp.m.ble.gattc_rd.buff_ptr);
             if (len > 0) {
-                if (esp.msg->msg.ble_gattc_rd.data != NULL) {
+                if (esp.m.ble.gattc_rd.data != NULL) {
                     size_t copy_len = LWESP_MIN(len,
-                        esp.msg->msg.ble_gattc_rd.btr > esp.msg->msg.ble_gattc_rd.buff_ptr
-                            ? esp.msg->msg.ble_gattc_rd.btr - esp.msg->msg.ble_gattc_rd.buff_ptr
+                        esp.m.ble.gattc_rd.btr > esp.m.ble.gattc_rd.buff_ptr
+                            ? esp.m.ble.gattc_rd.btr - esp.m.ble.gattc_rd.buff_ptr
                             : 0);
                     if (copy_len > 0) {
                         LWESP_MEMCPY(
-                            &((uint8_t*)esp.msg->msg.ble_gattc_rd.data)[esp.msg->msg.ble_gattc_rd.buff_ptr],
+                            &((uint8_t*)esp.m.ble.gattc_rd.data)[esp.m.ble.gattc_rd.buff_ptr],
                             d, copy_len);
                     }
                 }
                 d_len -= len;
                 d += len;
-                esp.msg->msg.ble_gattc_rd.buff_ptr += len;
+                esp.m.ble.gattc_rd.buff_ptr += len;
             }
 
             /* Check for end of data */
-            if (esp.msg->msg.ble_gattc_rd.buff_ptr == esp.msg->msg.ble_gattc_rd.data_len) {
-                esp.msg->msg.ble_gattc_rd.read_mode = 0;
-                if (esp.msg->msg.ble_gattc_rd.actual_len != NULL) {
-                    *esp.msg->msg.ble_gattc_rd.actual_len =
-                        LWESP_MIN(esp.msg->msg.ble_gattc_rd.data_len, esp.msg->msg.ble_gattc_rd.btr);
+            if (esp.m.ble.gattc_rd.buff_ptr == esp.m.ble.gattc_rd.data_len) {
+                esp.m.ble.gattc_rd.read_mode = 0;
+                if (esp.m.ble.gattc_rd.actual_len != NULL) {
+                    *esp.m.ble.gattc_rd.actual_len =
+                        LWESP_MIN(esp.m.ble.gattc_rd.data_len, esp.m.ble.gattc_rd.btr);
                 }
                 /* Send event to user */
-                esp.evt.evt.ble_gattc_read.conn_index = esp.msg->msg.ble_gattc_rd.conn_index;
-                esp.evt.evt.ble_gattc_read.len = esp.msg->msg.ble_gattc_rd.data_len;
-                esp.evt.evt.ble_gattc_read.data = (const uint8_t*)esp.msg->msg.ble_gattc_rd.data;
+                esp.evt.evt.ble_gattc_read.conn_index = esp.m.ble.gattc_rd.conn_index;
+                esp.evt.evt.ble_gattc_read.len = esp.m.ble.gattc_rd.data_len;
+                esp.evt.evt.ble_gattc_read.data = (const uint8_t*)esp.m.ble.gattc_rd.data;
                 lwespi_send_cb(LWESP_EVT_BLE_GATTC_READ);
             }
 #endif /* LWESP_CFG_BLE */
@@ -1732,21 +1732,20 @@ lwespi_process(const void* data, size_t data_len) {
                             RECV_RESET();
                             AT_PORT_SEND_WITH_FLUSH(esp.msg->msg.ble_gattc_wr.data, esp.msg->msg.ble_gattc_wr.len);
                         }
-                    } else if (CMD_IS_CUR(LWESP_CMD_BLEGATTCRD)) {
+                    } else if (ch == ',' && RECV_LEN() > 12 && RECV_IDX(0) == '+'
+                               && !strncmp(recv_buff.data, "+BLEGATTCRD", 11)
+                               && (tmp_ptr = strchr(recv_buff.data, ',')) != NULL
+                               && (tmp_ptr = strchr(tmp_ptr + 1, ',')) != NULL) {
                         /*
                          * +BLEGATTCRD:<conn_index>,<len>,<binary_data>
                          *
                          * Detect 2nd comma to trigger binary read mode.
                          * Data after this comma is raw binary and cannot
                          * be processed as ASCII text.
+                         * Note: No CMD_IS_CUR check - OK arrives before this URC.
                          */
-                        if (ch == ',' && RECV_LEN() > 12 && RECV_IDX(0) == '+'
-                            && !strncmp(recv_buff.data, "+BLEGATTCRD", 11)
-                            && (tmp_ptr = strchr(recv_buff.data, ',')) != NULL
-                            && (tmp_ptr = strchr(tmp_ptr + 1, ',')) != NULL) {
-                            lwespi_parse_received(&recv_buff);
-                            RECV_RESET();
-                        }
+                        lwespi_parse_received(&recv_buff);
+                        RECV_RESET();
 #endif /* LWESP_CFG_BLE */
 #if LWESP_CFG_CONN_MANUAL_TCP_RECEIVE
                         /*
@@ -3094,6 +3093,15 @@ lwespi_initiate_cmd(lwesp_msg_t* msg) {
             break;
         }
         case LWESP_CMD_BLEGATTCRD: {
+            /* Copy user buffer info to global state before sending AT command.
+             * This is necessary because OK arrives before +BLEGATTCRD URC,
+             * and esp.msg will be freed when OK is processed. */
+            esp.m.ble.gattc_rd.data = msg->msg.ble_gattc_rd.data;
+            esp.m.ble.gattc_rd.btr = msg->msg.ble_gattc_rd.btr;
+            esp.m.ble.gattc_rd.actual_len = msg->msg.ble_gattc_rd.actual_len;
+            esp.m.ble.gattc_rd.read_mode = 0;
+            esp.m.ble.gattc_rd.buff_ptr = 0;
+
             AT_PORT_SEND_BEGIN_AT();
             AT_PORT_SEND_CONST_STR("+BLEGATTCRD=");
             lwespi_send_number(LWESP_U32(msg->msg.ble_gattc_rd.conn_index), 0, 0);
